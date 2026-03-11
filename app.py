@@ -15,31 +15,87 @@ def read_version() -> str:
     return version_file.read_text(encoding="utf-8").strip() or "V0.0.0"
 
 
-def sample_long_paths(base_dir: Path, total: int) -> tuple[list[str], int]:
-    """Create deep files under project dir and return their relative paths."""
+def sample_long_paths(base_dir: Path, total: int) -> tuple[list[str], int, int]:
+    """Create recursive long-path folders/files under project dir."""
     output_dir = base_dir / "generated_long_paths"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     paths: list[str] = []
+    directories_created = 0
     failures = 0
-    for i in range(total):
-        relative = Path(
-            "batch-{:03d}/component-{:03d}/feature-{:03d}/very-long-file-name-for-"
-            "line-break-validation-and-horizontal-scroll-regression-{:05d}.txt".format(
-                i % 97,
-                i % 53,
-                i % 29,
-                i,
-            )
-        )
-        absolute = output_dir / relative
+    max_depth = 6
+    branch_factor = 3
 
+    def write_file(target: Path, idx: int, level: int) -> None:
+        nonlocal failures
         try:
-            absolute.parent.mkdir(parents=True, exist_ok=True)
-            absolute.write_text("path generated for longpath wrapping test\n", encoding="utf-8")
-            paths.append(str(absolute.relative_to(base_dir)).replace("\\", "/"))
+            target.write_text(
+                f"generated file index={idx} depth={level} for long path test\n",
+                encoding="utf-8",
+            )
+            paths.append(str(target.relative_to(base_dir)).replace("\\", "/"))
         except OSError:
             failures += 1
+
+    def build_tree(current_dir: Path, level: int, index_start: int, remaining: int) -> tuple[int, int]:
+        nonlocal directories_created
+        if remaining <= 0:
+            return index_start, 0
+
+        created_here = 0
+        for branch in range(branch_factor):
+            if created_here >= remaining:
+                break
+
+            folder_name = (
+                "lvl-{:02d}-node-{:02d}-long-folder-name-for-recursive-path-"
+                "stress-validation-and-ticket-reproduction"
+            ).format(level, branch)
+            branch_dir = current_dir / folder_name
+            try:
+                branch_dir.mkdir(parents=True, exist_ok=True)
+                directories_created += 1
+            except OSError:
+                failures += 1
+                continue
+
+            file_target = branch_dir / (
+                "very-long-file-name-to-validate-line-break-behavior-without-"
+                "horizontal-scroll-regression-{:06d}.txt".format(index_start)
+            )
+            write_file(file_target, index_start, level)
+            index_start += 1
+            created_here += 1
+
+            can_go_deeper = level < max_depth and created_here < remaining
+            if can_go_deeper:
+                index_start, nested_created = build_tree(
+                    branch_dir,
+                    level + 1,
+                    index_start,
+                    remaining - created_here,
+                )
+                created_here += nested_created
+
+        return index_start, created_here
+
+    _, created_total = build_tree(output_dir, 1, 0, total)
+
+    # Fallback in case recursion stops early because of filesystem limits.
+    while created_total < total:
+        idx = created_total
+        fallback = output_dir / (
+            "fallback-path-segment-with-long-name/fallback-file-name-for-"
+            "longpath-validation-{:06d}.txt".format(idx)
+        )
+        try:
+            fallback.parent.mkdir(parents=True, exist_ok=True)
+            directories_created += 1
+            write_file(fallback, idx, 0)
+            created_total += 1
+        except OSError:
+            failures += 1
+            break
 
     # Include extra-long examples similar to the reported issue.
     extra_relative = Path(
@@ -50,12 +106,13 @@ def sample_long_paths(base_dir: Path, total: int) -> tuple[list[str], int]:
     extra_absolute = output_dir / extra_relative
     try:
         extra_absolute.parent.mkdir(parents=True, exist_ok=True)
+        directories_created += 1
         extra_absolute.write_text("extra long path sample\n", encoding="utf-8")
         paths.append(str(extra_absolute.relative_to(base_dir)).replace("\\", "/"))
     except OSError:
         failures += 1
 
-    return paths, failures
+    return paths, directories_created, failures
 
 
 class LongPathApp(tk.Tk):
@@ -140,11 +197,14 @@ class LongPathApp(tk.Tk):
         text.pack(fill=tk.BOTH, expand=True)
 
         base_dir = Path(__file__).resolve().parent
-        paths, failures = sample_long_paths(base_dir, total)
+        paths, directories_created, failures = sample_long_paths(base_dir, total)
 
         ttk.Label(
             wrapper,
-            text=f"Generados: {len(paths)} paths dentro de {base_dir.name}/generated_long_paths"
+            text=(
+                f"Generados: {len(paths)} archivos | {directories_created} carpetas "
+                f"dentro de {base_dir.name}/generated_long_paths"
+            )
             + ("" if failures == 0 else f" | Fallidos: {failures}"),
             wraplength=680,
         ).pack(anchor=tk.W, pady=(6, 6))

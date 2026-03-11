@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## V1.0.3 - 2026-03-11
+
+- Updated `app.py` to generate recursive folder trees with long names and long file names.
+- Added recursive generation counters in popup summary (files, folders, failures).
+- Kept output rooted at `generated_long_paths/` next to `app.py` for ticket validation.
+
 ## V1.0.2 - 2026-03-11
 
 - Updated `app.py` to create long-path files physically under `generated_long_paths/` in the project folder.

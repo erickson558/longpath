@@ -11,7 +11,7 @@ Version actual: consultar `VERSION` (fuente unica de verdad).
 
 - Muestra una ventana principal con boton para abrir un popup de import.
 - Permite configurar cuantas rutas generar (por defecto `39090`).
-- Genera rutas y archivos reales dentro de `generated_long_paths/` en la misma carpeta de `app.py`.
+- Genera rutas y archivos reales de forma recursiva dentro de `generated_long_paths/` en la misma carpeta de `app.py`.
 - El popup renderiza esas rutas profundas en un control con `wrap=tk.WORD`.
 - Esto simula el caso reportado en UI para validar que no exista desplazamiento lateral.
 
