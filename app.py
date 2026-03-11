@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import tkinter as tk
+from tkinter import messagebox
 from tkinter import ttk
 from tkinter.scrolledtext import ScrolledText
 
@@ -14,20 +15,32 @@ def read_version() -> str:
     return version_file.read_text(encoding="utf-8").strip() or "V0.0.0"
 
 
-def sample_long_paths() -> list[str]:
-    """Return sample deep file paths to validate line wrapping in the popup."""
-    base = "docs/design/coreclr/botr/images"
-    return [
-        f"{base}/profiling-gc.png",
-        f"{base}/profiling-overview.png",
-        f"{base}/simple-dependency-graph.gv",
-        f"{base}/simple-dependency-graph.svg",
-        f"{base}/stack.png",
-        f"{base}/type-system-dependencies.png",
-        "src/coreclr/nugen/ILCompiler.Reflection.ReadyToRun.Experimental/"
-        "ILCompiler.Reflection.ReadyToRun.Experimental.Very.Long.File.Name."
-        "That.Should.Wrap.Correctly.And.Not.Create.Horizontal.Scroll.png",
-    ]
+def sample_long_paths(total: int) -> list[str]:
+    """Build many deep and long file paths to stress line wrapping behavior."""
+    paths: list[str] = []
+    for i in range(total):
+        paths.append(
+            "src/coreclr/runtime/subdir-{:03d}/component-{:03d}/feature-{:03d}/"
+            "very-long-file-name-for-line-break-validation-{:05d}.png".format(
+                i % 97,
+                i % 53,
+                i % 29,
+                i,
+            )
+        )
+
+    # Include extra-long examples similar to the reported issue.
+    paths.extend(
+        [
+            "src/coreclr/nugen/ILCompiler.Reflection.ReadyToRun.Experimental/"
+            "ILCompiler.Reflection.ReadyToRun.Experimental.Very.Long.File.Name."
+            "That.Should.Wrap.Correctly.And.Not.Create.Horizontal.Scroll.png",
+            "https://github.com/dotnet/runtime/aekoniginger-patch-1/subdir/another/"
+            "subdir/yet/another/deep/path/that/keeps/growing/for/layout-validation/"
+            "and-should-wrap-without-any-sideways-scroll-behavior.txt",
+        ]
+    )
+    return paths
 
 
 class LongPathApp(tk.Tk):
@@ -62,12 +75,31 @@ class LongPathApp(tk.Tk):
             command=self.open_import_popup,
         ).pack(anchor=tk.W)
 
+        self.path_count = tk.StringVar(value="39090")
+        count_row = ttk.Frame(root)
+        count_row.pack(anchor=tk.W, pady=(14, 0))
+        ttk.Label(count_row, text="Cantidad de paths a generar:").pack(side=tk.LEFT)
+        ttk.Entry(count_row, width=10, textvariable=self.path_count).pack(side=tk.LEFT, padx=(8, 0))
+
         ttk.Label(
             root,
             text=f"Version actual: {self.version}",
         ).pack(anchor=tk.W, pady=(20, 0))
 
     def open_import_popup(self) -> None:
+        try:
+            total = int(self.path_count.get().strip())
+            if total <= 0:
+                raise ValueError
+            if total > 120000:
+                messagebox.showwarning(
+                    "Valor alto",
+                    "Se recomienda usar <= 120000 para evitar lentitud extrema.",
+                )
+        except ValueError:
+            messagebox.showerror("Valor invalido", "Ingresa un numero entero mayor a cero.")
+            return
+
         dialog = tk.Toplevel(self)
         dialog.title("Ready to Import")
         dialog.geometry("720x420")
@@ -92,8 +124,8 @@ class LongPathApp(tk.Tk):
         )
         text.pack(fill=tk.BOTH, expand=True)
 
-        for path in sample_long_paths():
-            text.insert(tk.END, path + "\n")
+        paths = sample_long_paths(total)
+        text.insert(tk.END, "\n".join(paths) + "\n")
 
         text.configure(state=tk.DISABLED)
 

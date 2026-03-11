@@ -5,11 +5,12 @@ Aplicacion de prueba para validar el escenario de rutas extremadamente largas en
 - Los filepaths largos hagan salto de linea.
 - No aparezca scroll horizontal por textos sin corte.
 
-Version actual: `V1.0.0`
+Version actual: consultar `VERSION` (fuente unica de verdad).
 
 ## Funcionalidad
 
 - Muestra una ventana principal con boton para abrir un popup de import.
+- Permite configurar cuantas rutas generar (por defecto `39090`).
 - El popup renderiza rutas profundas en un control con `wrap=tk.WORD`.
 - Esto simula el caso reportado en UI para validar que no exista desplazamiento lateral.
 

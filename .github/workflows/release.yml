@@ -33,8 +33,8 @@ jobs:
         shell: pwsh
         run: |
           $version = (Get-Content VERSION -Raw).Trim()
-          if (-not $version.StartsWith('V')) {
-            throw "VERSION debe iniciar con V (ejemplo: V1.2.3)"
+          if ($version -notmatch '^V\d+\.\d+\.\d+$') {
+            throw "VERSION debe cumplir formato Vx.x.x (ejemplo: V1.2.3)"
           }
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
