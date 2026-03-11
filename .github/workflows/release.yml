@@ -1,0 +1,92 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Read version
+        id: version
+        shell: pwsh
+        run: |
+          $version = (Get-Content VERSION -Raw).Trim()
+          if (-not $version.StartsWith('V')) {
+            throw "VERSION debe iniciar con V (ejemplo: V1.2.3)"
+          }
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Validate version changed
+        shell: pwsh
+        run: |
+          if (git rev-parse HEAD^ 2>$null) {
+            $previous = (git show HEAD^:VERSION 2>$null)
+            if ($LASTEXITCODE -eq 0) {
+              $current = (Get-Content VERSION -Raw).Trim()
+              if ($previous.Trim() -eq $current) {
+                throw "VERSION no cambio respecto al commit anterior. Debes incrementar la version en cada commit a main."
+              }
+            }
+          }
+
+      - name: Ensure icon exists
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "./app.ico")) {
+            throw "Falta app.ico en la raiz del proyecto"
+          }
+
+      - name: Build EXE
+        shell: pwsh
+        run: ./build.ps1
+
+      - name: Create tag
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const version = `${{ steps.version.outputs.version }}`;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const sha = context.sha;
+            try {
+              await github.rest.git.createRef({
+                owner,
+                repo,
+                ref: `refs/tags/${version}`,
+                sha,
+              });
+            } catch (error) {
+              if (error.status !== 422) throw error;
+              core.info(`Tag ${version} ya existe. Se reutiliza.`);
+            }
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: Release ${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: |
+            ./app.exe
