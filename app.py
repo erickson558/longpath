@@ -26,7 +26,18 @@ def sample_long_paths(base_dir: Path, total: int) -> tuple[list[str], int, int]:
     max_depth = 6
     branch_factor = 3
 
-    def write_file(target: Path, idx: int, level: int) -> None:
+    def ensure_directory(target: Path) -> bool:
+        nonlocal directories_created, failures
+        try:
+            if not target.exists():
+                target.mkdir(parents=True, exist_ok=True)
+                directories_created += 1
+            return True
+        except OSError:
+            failures += 1
+            return False
+
+    def write_file(target: Path, idx: int, level: int) -> bool:
         nonlocal failures
         try:
             target.write_text(
@@ -34,11 +45,12 @@ def sample_long_paths(base_dir: Path, total: int) -> tuple[list[str], int, int]:
                 encoding="utf-8",
             )
             paths.append(str(target.relative_to(base_dir)).replace("\\", "/"))
+            return True
         except OSError:
             failures += 1
+            return False
 
     def build_tree(current_dir: Path, level: int, index_start: int, remaining: int) -> tuple[int, int]:
-        nonlocal directories_created
         if remaining <= 0:
             return index_start, 0
 
@@ -52,20 +64,16 @@ def sample_long_paths(base_dir: Path, total: int) -> tuple[list[str], int, int]:
                 "stress-validation-and-ticket-reproduction"
             ).format(level, branch)
             branch_dir = current_dir / folder_name
-            try:
-                branch_dir.mkdir(parents=True, exist_ok=True)
-                directories_created += 1
-            except OSError:
-                failures += 1
+            if not ensure_directory(branch_dir):
                 continue
 
             file_target = branch_dir / (
                 "very-long-file-name-to-validate-line-break-behavior-without-"
                 "horizontal-scroll-regression-{:06d}.txt".format(index_start)
             )
-            write_file(file_target, index_start, level)
+            if write_file(file_target, index_start, level):
+                created_here += 1
             index_start += 1
-            created_here += 1
 
             can_go_deeper = level < max_depth and created_here < remaining
             if can_go_deeper:
@@ -79,22 +87,19 @@ def sample_long_paths(base_dir: Path, total: int) -> tuple[list[str], int, int]:
 
         return index_start, created_here
 
-    _, created_total = build_tree(output_dir, 1, 0, total)
+    next_index, _ = build_tree(output_dir, 1, 0, total)
 
     # Fallback in case recursion stops early because of filesystem limits.
-    while created_total < total:
-        idx = created_total
-        fallback = output_dir / (
-            "fallback-path-segment-with-long-name/fallback-file-name-for-"
-            "longpath-validation-{:06d}.txt".format(idx)
+    fallback_dir = output_dir / "fallback-path-segment-with-long-name"
+    while len(paths) < total:
+        idx = next_index
+        next_index += 1
+        fallback = fallback_dir / (
+            "fallback-file-name-for-longpath-validation-{:06d}.txt".format(idx)
         )
-        try:
-            fallback.parent.mkdir(parents=True, exist_ok=True)
-            directories_created += 1
-            write_file(fallback, idx, 0)
-            created_total += 1
-        except OSError:
-            failures += 1
+        if not ensure_directory(fallback.parent):
+            break
+        if not write_file(fallback, idx, 0):
             break
 
     # Include extra-long examples similar to the reported issue.
@@ -105,10 +110,9 @@ def sample_long_paths(base_dir: Path, total: int) -> tuple[list[str], int, int]:
     )
     extra_absolute = output_dir / extra_relative
     try:
-        extra_absolute.parent.mkdir(parents=True, exist_ok=True)
-        directories_created += 1
-        extra_absolute.write_text("extra long path sample\n", encoding="utf-8")
-        paths.append(str(extra_absolute.relative_to(base_dir)).replace("\\", "/"))
+        if ensure_directory(extra_absolute.parent):
+            extra_absolute.write_text("extra long path sample\n", encoding="utf-8")
+            paths.append(str(extra_absolute.relative_to(base_dir)).replace("\\", "/"))
     except OSError:
         failures += 1
 

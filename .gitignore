@@ -9,4 +9,3 @@ venv/
 build/
 dist/
 *.log
-generated_long_paths/

@@ -62,15 +62,17 @@ Se usa Semantic Versioning con prefijo `V`:
 Regla del repositorio:
 
 - Cada commit a `main` debe incrementar `VERSION`.
+- `CHANGELOG.md` debe incluir una entrada para esa misma version.
 - El workflow crea tag/release con ese mismo valor.
 - La app muestra exactamente esa misma version en UI.
+- El release publica el `app.exe` generado con esa version como referencia operativa.
 
 ## Flujo recomendado por commit
 
 1. Cambiar `VERSION` (por ejemplo `V1.0.2`).
 2. Actualizar `CHANGELOG.md`.
 3. Commit a `main`.
-4. GitHub Actions valida y publica release.
+4. GitHub Actions valida version/changelog, recompila y publica release.
 
 ## Licencia
 
