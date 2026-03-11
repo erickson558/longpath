@@ -15,32 +15,47 @@ def read_version() -> str:
     return version_file.read_text(encoding="utf-8").strip() or "V0.0.0"
 
 
-def sample_long_paths(total: int) -> list[str]:
-    """Build many deep and long file paths to stress line wrapping behavior."""
+def sample_long_paths(base_dir: Path, total: int) -> tuple[list[str], int]:
+    """Create deep files under project dir and return their relative paths."""
+    output_dir = base_dir / "generated_long_paths"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
     paths: list[str] = []
+    failures = 0
     for i in range(total):
-        paths.append(
-            "src/coreclr/runtime/subdir-{:03d}/component-{:03d}/feature-{:03d}/"
-            "very-long-file-name-for-line-break-validation-{:05d}.png".format(
+        relative = Path(
+            "batch-{:03d}/component-{:03d}/feature-{:03d}/very-long-file-name-for-"
+            "line-break-validation-and-horizontal-scroll-regression-{:05d}.txt".format(
                 i % 97,
                 i % 53,
                 i % 29,
                 i,
             )
         )
+        absolute = output_dir / relative
+
+        try:
+            absolute.parent.mkdir(parents=True, exist_ok=True)
+            absolute.write_text("path generated for longpath wrapping test\n", encoding="utf-8")
+            paths.append(str(absolute.relative_to(base_dir)).replace("\\", "/"))
+        except OSError:
+            failures += 1
 
     # Include extra-long examples similar to the reported issue.
-    paths.extend(
-        [
-            "src/coreclr/nugen/ILCompiler.Reflection.ReadyToRun.Experimental/"
-            "ILCompiler.Reflection.ReadyToRun.Experimental.Very.Long.File.Name."
-            "That.Should.Wrap.Correctly.And.Not.Create.Horizontal.Scroll.png",
-            "https://github.com/dotnet/runtime/aekoniginger-patch-1/subdir/another/"
-            "subdir/yet/another/deep/path/that/keeps/growing/for/layout-validation/"
-            "and-should-wrap-without-any-sideways-scroll-behavior.txt",
-        ]
+    extra_relative = Path(
+        "coreclr/nugen/ILCompiler.Reflection.ReadyToRun.Experimental/"
+        "ILCompiler.Reflection.ReadyToRun.Experimental.Very.Long.File.Name."
+        "That.Should.Wrap.Correctly.And.Not.Create.Horizontal.Scroll.txt"
     )
-    return paths
+    extra_absolute = output_dir / extra_relative
+    try:
+        extra_absolute.parent.mkdir(parents=True, exist_ok=True)
+        extra_absolute.write_text("extra long path sample\n", encoding="utf-8")
+        paths.append(str(extra_absolute.relative_to(base_dir)).replace("\\", "/"))
+    except OSError:
+        failures += 1
+
+    return paths, failures
 
 
 class LongPathApp(tk.Tk):
@@ -124,7 +139,16 @@ class LongPathApp(tk.Tk):
         )
         text.pack(fill=tk.BOTH, expand=True)
 
-        paths = sample_long_paths(total)
+        base_dir = Path(__file__).resolve().parent
+        paths, failures = sample_long_paths(base_dir, total)
+
+        ttk.Label(
+            wrapper,
+            text=f"Generados: {len(paths)} paths dentro de {base_dir.name}/generated_long_paths"
+            + ("" if failures == 0 else f" | Fallidos: {failures}"),
+            wraplength=680,
+        ).pack(anchor=tk.W, pady=(6, 6))
+
         text.insert(tk.END, "\n".join(paths) + "\n")
 
         text.configure(state=tk.DISABLED)

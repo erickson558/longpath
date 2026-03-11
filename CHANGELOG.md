@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## V1.0.2 - 2026-03-11
+
+- Updated `app.py` to create long-path files physically under `generated_long_paths/` in the project folder.
+- Popup now displays generated paths from disk and reports generated/failed counts.
+- Updated `.gitignore` to exclude generated stress-test files.
+
 ## V1.0.1 - 2026-03-11
 
 - Added configurable massive path generation (default `39090`) in `app.py` to stress popup wrapping.

@@ -11,7 +11,8 @@ Version actual: consultar `VERSION` (fuente unica de verdad).
 
 - Muestra una ventana principal con boton para abrir un popup de import.
 - Permite configurar cuantas rutas generar (por defecto `39090`).
-- El popup renderiza rutas profundas en un control con `wrap=tk.WORD`.
+- Genera rutas y archivos reales dentro de `generated_long_paths/` en la misma carpeta de `app.py`.
+- El popup renderiza esas rutas profundas en un control con `wrap=tk.WORD`.
 - Esto simula el caso reportado en UI para validar que no exista desplazamiento lateral.
 
 ## Estructura
@@ -66,7 +67,7 @@ Regla del repositorio:
 
 ## Flujo recomendado por commit
 
-1. Cambiar `VERSION` (por ejemplo `V1.0.1`).
+1. Cambiar `VERSION` (por ejemplo `V1.0.2`).
 2. Actualizar `CHANGELOG.md`.
 3. Commit a `main`.
 4. GitHub Actions valida y publica release.
